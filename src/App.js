@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react'; // Removed useEffect
 
 // Main App component for the Cash Up application
 const App = () => {
@@ -90,13 +90,11 @@ const App = () => {
         return totalCardGratuity + cashGratuity;
     }, [totalCardGratuity, cashGratuity]);
 
-    // Memoized calculation for total sales (cash + card payments + combined gratuity) - for general info
-    // This variable is not used in the final "Overall Difference" calculation as per user's specific formula,
-    // but is kept for general overview if needed elsewhere.
-    const totalSales = useMemo(() => cashTakenTotal + totalCardPayments + totalCombinedGratuity, [cashTakenTotal, totalCardPayments, totalCombinedGratuity]);
+    // totalSales is assigned a value but never used
+    // const totalSales = useMemo(() => cashTakenTotal + totalCardPayments + totalCombinedGratuity, [cashTakenTotal, totalCardPayments, totalCombinedGratuity]);
 
-    // Memoized calculation for the amount of cash to be banked
-    const cashToBeBanked = useMemo(() => cashTakenTotal - TILL_FLOAT_VALUE, [cashTakenTotal]);
+    // cashToBeBanked is assigned a value but never used
+    // const cashToBeBanked = useMemo(() => cashTakenTotal - TILL_FLOAT_VALUE, [cashTakenTotal]);
 
     // Memoized calculation for the overall difference based on the provided formula:
     // (Z Report - Card Takings - Petty Cash + Card Gratuity) - (Cash Takings - Till Float)
