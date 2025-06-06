@@ -1,6 +1,6 @@
 {
-  "short_name": "Cash Up",  <-- Change this
-  "name": "Cash Up",    <-- Change this
+  "short_name": "Cash Up",
+  "name": "Cash Up", 
   "icons": [
     {
       "src": "favicon.ico",
