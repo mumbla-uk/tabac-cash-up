@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react'; // Removed useEffect
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 
 // Main App component for the Cash Up application
 const App = () => {
@@ -75,6 +75,13 @@ const App = () => {
         return Object.values(cashTakenTotalsByDenomination).reduce((acc, val) => acc + val, 0);
     }, [cashTakenTotalsByDenomination]);
 
+    // Memoized calculation for the actual cash takings after deducting the float
+    // This value will be used in the overall difference and summary.
+    const cashTakingsAfterFloat = useMemo(() => {
+        return cashTakenTotal - TILL_FLOAT_VALUE;
+    }, [cashTakenTotal, TILL_FLOAT_VALUE]);
+
+
     // Memoized calculation for total card payments (sum of all three card machine totals)
     const totalCardPayments = useMemo(() => {
         return cardReadings.card1 + cardReadings.card2 + cardReadings.card3;
@@ -90,20 +97,12 @@ const App = () => {
         return totalCardGratuity + cashGratuity;
     }, [totalCardGratuity, cashGratuity]);
 
-    // totalSales is assigned a value but never used
-    // const totalSales = useMemo(() => cashTakenTotal + totalCardPayments + totalCombinedGratuity, [cashTakenTotal, totalCardPayments, totalCombinedGratuity]);
-
-    // cashToBeBanked is assigned a value but never used
-    // const cashToBeBanked = useMemo(() => cashTakenTotal - TILL_FLOAT_VALUE, [cashTakenTotal]);
-
-    // Memoized calculation for the overall difference based on the provided formula:
-    // (Z Report - Card Takings - Petty Cash + Card Gratuity) - (Cash Takings - Till Float)
-    // Discounts are NOT included in this calculation as per user's request.
+    // Memoized calculation for the overall difference based on the new provided formula:
+    // (Z Report - Card Takings - Petty Cash + Card Gratuity) - Cash Takings
     const overallDifference = useMemo(() => {
-        const expectedCashSales = zReport - totalCardPayments - pettyCash + totalCardGratuity; // Only Card Gratuity used here
-        const actualCashSalesFromTill = cashTakenTotal - TILL_FLOAT_VALUE; // Deduct float from total cash counted
-        return expectedCashSales - actualCashSalesFromTill;
-    }, [zReport, totalCardPayments, pettyCash, totalCardGratuity, cashTakenTotal, TILL_FLOAT_VALUE]);
+        const plannedCash = zReport - totalCardPayments - pettyCash + totalCardGratuity;
+        return plannedCash - cashTakingsAfterFloat;
+    }, [zReport, totalCardPayments, pettyCash, totalCardGratuity, cashTakingsAfterFloat]);
 
     // Function to reset all fields to their initial state
     const resetAll = () => {
@@ -140,13 +139,21 @@ const App = () => {
         return `£${denom}`;
     };
 
-    // Helper function to format money values with + or - sign
+    // Helper function to format money values with + or - sign,
+    // inverting the sign for display to match user's interpretation.
     const formatSignedCurrency = (value) => {
         if (value === 0) {
             return '£0.00';
         }
-        const sign = value > 0 ? '+' : '';
-        return `${sign}£${value.toFixed(2)}`;
+        // Invert the value for display based on user's request
+        const displayValue = Math.abs(value);
+        let sign = '';
+        if (value < 0) { // If calculated difference is negative, it's 'over' (display positive)
+            sign = '+';
+        } else if (value > 0) { // If calculated difference is positive, it's 'under' (display negative)
+            sign = '-';
+        }
+        return `${sign}£${displayValue.toFixed(2)}`;
     };
 
     // Function to get the display day of the week and date
@@ -178,7 +185,7 @@ const App = () => {
             const summaryText = `${currentDisplayInfo}\n` + // Only day and date included here
                                `Z - £${zReport.toFixed(2)}\n` +
                                `Card - £${totalCardPayments.toFixed(2)}\n` +
-                               `Cash - £${cashTakenTotal.toFixed(2)}\n` +
+                               `Cash - £${cashTakingsAfterFloat.toFixed(2)}\n` +
                                `Petty Cash - £${pettyCash.toFixed(2)}\n\n` +
                                `Gratuity\n` +
                                `Card - £${totalCardGratuity.toFixed(2)}\n` +
@@ -242,7 +249,30 @@ const App = () => {
                 setTimeout(() => setCopyFeedback(''), 2000);
             }
         }
-    }, [getDisplayDayAndDate, zReport, totalCardPayments, cashTakenTotal, pettyCash, totalCardGratuity, cashGratuity, totalCombinedGratuity, discounts, overallDifference]);
+    }, [getDisplayDayAndDate, zReport, totalCardPayments, pettyCash, totalCardGratuity, cashGratuity, totalCombinedGratuity, discounts, overallDifference, cashTakingsAfterFloat]);
+
+    // Function to send summary via email
+    const handleSendEmail = useCallback(() => {
+        const currentDisplayInfo = getDisplayDayAndDate();
+        const emailSubject = encodeURIComponent(`Cash Up Summary for ${currentDisplayInfo}`);
+        const emailBody = encodeURIComponent(
+            `Date: ${currentDisplayInfo}\n\n` +
+            `--- Summary ---\n` +
+            `Z Report: £${zReport.toFixed(2)}\n` +
+            `Card Payments: £${totalCardPayments.toFixed(2)}\n` +
+            `Cash Takings (after float): £${cashTakingsAfterFloat.toFixed(2)}\n` +
+            `Petty Cash: £${pettyCash.toFixed(2)}\n\n` +
+            `--- Gratuity ---\n` +
+            `Card Gratuity: £${totalCardGratuity.toFixed(2)}\n` +
+            `Cash Gratuity: £${cashGratuity.toFixed(2)}\n` +
+            `Total Gratuity: £${totalCombinedGratuity.toFixed(2)}\n\n` +
+            `Discounts: £${discounts.toFixed(2)}\n\n` +
+            `Difference: ${formatSignedCurrency(overallDifference)}\n\n` +
+            `--- End of Summary ---`
+        );
+        const mailtoLink = `mailto:rossandrewjordan@icloud.com?subject=${emailSubject}&body=${emailBody}`;
+        window.location.href = mailtoLink;
+    }, [getDisplayDayAndDate, zReport, totalCardPayments, cashTakingsAfterFloat, pettyCash, totalCardGratuity, cashGratuity, totalCombinedGratuity, discounts, overallDifference]);
 
 
     return (
@@ -301,6 +331,11 @@ const App = () => {
                     <div className="flex justify-between items-center pt-2 border-t-2 border-green-300">
                         <span className="text-lg font-bold text-green-800">CASH TOTAL</span>
                         <span className="text-lg font-bold text-green-800">£{cashTakenTotal.toFixed(2)}</span>
+                    </div>
+                    {/* New Cash Takings display */}
+                    <div className="flex justify-between items-center pt-2 mt-2 border-t-2 border-green-300">
+                        <span className="text-lg font-bold text-green-800">CASH TAKINGS (£{TILL_FLOAT_VALUE.toFixed(2)} off)</span>
+                        <span className="text-lg font-bold text-green-800">£{cashTakingsAfterFloat.toFixed(2)}</span>
                     </div>
                 </div>
 
@@ -438,7 +473,7 @@ const App = () => {
                         </div>
                         <div className="flex justify-between">
                             <span className="font-semibold text-gray-700">Cash -</span>
-                            <span className="font-bold text-gray-900">£{cashTakenTotal.toFixed(2)}</span>
+                            <span className="font-bold text-gray-900">£{cashTakingsAfterFloat.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="font-semibold text-gray-700">Petty Cash -</span>
@@ -481,20 +516,20 @@ const App = () => {
 
                 {/* Overall Difference / Reconciliation Section */}
                 <div className="mb-6 p-4 rounded-lg"
-                    style={{ backgroundColor: overallDifference === 0 ? '#e6ffe6' : (overallDifference > 0 ? '#ffe6e6' : '#e6e6ff') }}> {/* Muted colors */}
+                    style={{ backgroundColor: overallDifference === 0 ? '#e6ffe6' : (overallDifference > 0 ? '#ffe6e6' : '#e6ffe6') }}> {/* Muted colors: Green for balanced/over, Red for under */}
                     <h2 className="text-xl font-semibold text-gray-800 mb-3">Overall Difference</h2>
                     <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-gray-800">Difference</span>
                         <span className={`text-2xl font-extrabold ${
-                            overallDifference === 0 ? 'text-green-700' : (overallDifference > 0 ? 'text-red-700' : 'text-blue-700')
+                            overallDifference === 0 ? 'text-green-700' : (overallDifference > 0 ? 'text-red-700' : 'text-green-700') // Green for over, Red for under
                         }`}>
                             {formatSignedCurrency(overallDifference)}
                         </span>
                     </div>
                     <p className={`text-sm mt-2 text-center ${
-                        overallDifference === 0 ? 'text-green-600' : (overallDifference > 0 ? 'text-red-600' : 'text-blue-600')
+                        overallDifference === 0 ? 'text-green-600' : (overallDifference > 0 ? 'text-red-600' : 'text-green-600') // Green for over, Red for under
                     }`}>
-                        {overallDifference === 0 ? 'Balanced!' : (overallDifference > 0 ? 'Over' : 'Under')}
+                        {overallDifference === 0 ? 'Balanced!' : (overallDifference > 0 ? 'Under' : 'Over')} {/* Text adjusted */}
                     </p>
                 </div>
 
@@ -512,6 +547,12 @@ const App = () => {
                         className="px-6 py-3 bg-blue-400 text-blue-800 font-semibold rounded-lg hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 transition duration-200 ease-in-out"
                     >
                         Copy Summary
+                    </button>
+                    <button
+                        onClick={handleSendEmail}
+                        className="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 transition duration-200 ease-in-out"
+                    >
+                        Send Summary to Email
                     </button>
                 </div>
             </div>
