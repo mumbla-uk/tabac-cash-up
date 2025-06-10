@@ -156,6 +156,11 @@ const App = () => {
         return `${sign}£${displayValue.toFixed(2)}`;
     };
 
+    // NEW Helper function: Formats numerical values for the email body (no £ sign)
+    const formatValueForEmail = (value) => {
+        return value.toFixed(2);
+    };
+
     // Function to get the display day of the week and date
     const getDisplayDayAndDate = useCallback(() => {
         const now = new Date();
@@ -254,23 +259,22 @@ const App = () => {
     // Function to send summary via email
     const handleSendEmail = useCallback(() => {
         const currentDisplayInfo = getDisplayDayAndDate();
-        const emailSubject = encodeURIComponent(`Cash Up Summary for ${currentDisplayInfo}`);
+        // Set email subject to "Cash Up Summary"
+        const emailSubject = encodeURIComponent("Cash Up Summary");
         const emailBody = encodeURIComponent(
-            `Date: ${currentDisplayInfo}\n\n` +
-            `--- Summary ---\n` +
-            `Z Report: £${zReport.toFixed(2)}\n` +
-            `Card Payments: £${totalCardPayments.toFixed(2)}\n` +
-            `Cash Takings (after float): £${cashTakingsAfterFloat.toFixed(2)}\n` +
-            `Petty Cash: £${pettyCash.toFixed(2)}\n\n` +
-            `--- Gratuity ---\n` +
-            `Card Gratuity: £${totalCardGratuity.toFixed(2)}\n` +
-            `Cash Gratuity: £${cashGratuity.toFixed(2)}\n` +
-            `Total Gratuity: £${totalCombinedGratuity.toFixed(2)}\n\n` +
-            `Discounts: £${discounts.toFixed(2)}\n\n` +
-            `Difference: ${formatSignedCurrency(overallDifference)}\n\n` +
-            `--- End of Summary ---`
+            `Date = ${currentDisplayInfo}\n\n` +
+            `Z = ${formatValueForEmail(zReport)}\n` +
+            `Card = ${formatValueForEmail(totalCardPayments)}\n` +
+            `Cash = ${formatValueForEmail(cashTakingsAfterFloat)}\n` +
+            `Petty Cash = ${formatValueForEmail(pettyCash)}\n\n` +
+            `Card Gratuity = ${formatValueForEmail(totalCardGratuity)}\n` +
+            `Cash Gratuity = ${formatValueForEmail(cashGratuity)}\n` +
+            `Total Gratuity = ${formatValueForEmail(totalCombinedGratuity)}\n\n` +
+            `Discounts = ${formatValueForEmail(discounts)}\n\n` +
+            `Difference = ${formatSignedCurrency(overallDifference).replace('£', '')}` // Remove '£' for email difference
         );
-        const mailtoLink = `mailto:rossandrewjordan@icloud.com?subject=${emailSubject}&body=${emailBody}`;
+        // Set recipient to tabactakings@gmail.com
+        const mailtoLink = `mailto:tabactakings@gmail.com?subject=${emailSubject}&body=${emailBody}`;
         window.location.href = mailtoLink;
     }, [getDisplayDayAndDate, zReport, totalCardPayments, cashTakingsAfterFloat, pettyCash, totalCardGratuity, cashGratuity, totalCombinedGratuity, discounts, overallDifference]);
 
